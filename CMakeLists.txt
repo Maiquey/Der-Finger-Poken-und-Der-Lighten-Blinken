@@ -4,7 +4,7 @@ project(my_hello_world VERSION 1.0 DESCRIPTION "Starter project" LANGUAGES C)
 
 # Compiler options (inherited by sub-folders)
 set(CMAKE_C_STANDARD 11)
-add_compile_options(-Wall -Werror -Wpedantic -Wextra)
+add_compile_options(-Wall -D _POSIX_C_SOURCE=200809L -Werror -Wpedantic -Wextra)
 add_compile_options(-fdiagnostics-color)
 
 # Enable address sanitizer
