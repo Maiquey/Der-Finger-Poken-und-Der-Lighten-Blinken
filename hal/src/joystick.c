@@ -1,6 +1,7 @@
 #include "hal/joystick.h"
 
 #define NUM_DIRECTIONS 4
+#define TIMEOUT_CODE 4
 #define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
 #define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
 #define JSUP_IN        "/sys/class/gpio/gpio26/value"
@@ -144,7 +145,7 @@ int joystick_getJoyStickPress(void){
 	if (ret == -1) {
 		return -1;
 	} else if (ret == 1){
-		return 5;
+		return TIMEOUT_CODE;
 		// printf("no input within 5000ms; quitting!\n");
 		// exit(EXIT_SUCCESS);
 	}
@@ -154,10 +155,9 @@ int joystick_getJoyStickPress(void){
 		char buff[1024];
 		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
 		if (bytesRead > 0) {
-			if (buff[0] == 0){
+			if (buff[0] == 48){
 				return i;
 			}
-			// printf("GPIO pin %d reads: %c\n", i, buff[0]);
 		} else {
 			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
 		}

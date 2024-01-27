@@ -123,7 +123,8 @@ int main()
     // REAL CODE
     // TODO: export GPIO pins
     srand(time(NULL));
-
+    joystick_init();
+    
     printf("Welcome to the reaction timer game v1.0!\n");
     printf("When the LEDs light up, press the joystick in that direction!\n");
     printf("(Press left or right to exit)\n");
@@ -148,6 +149,8 @@ int main()
         long long startTime = getTimeInMs();
         int directionId = joystick_getJoyStickPress();
         long long endTime = getTimeInMs();
+        printf("Direction: %d\n", directionId);
+        
         printf("Time: %lldms\n", endTime - startTime);
         if (directionId == TIMEOUT_CODE) {
             printf("No input within 5000ms; quitting!\n");
