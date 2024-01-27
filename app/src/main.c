@@ -22,6 +22,8 @@
 #define LED_DOWN 3
 #define UP_DIRECTION 0
 #define TIMEOUT_CODE 4
+#define CORRECT_FREQUENCY 4
+#define INCORRECT_FREQUENCY 10
 
 // From Assignment Description
 // static void runCommand(char* command)
@@ -46,6 +48,19 @@
 //         printf(" exit code: %d\n", exitCode);
 //     }
 // }
+static void flashCorrect(void){
+    for (int i = 0; i < CORRECT_FREQUENCY; i++){
+        led_setAllBrightness(i % 2);
+        sleepForMs(125);
+    }
+}
+
+static void flashIncorrect(void){
+    for (int i = 0; i < INCORRECT_FREQUENCY; i++){
+        led_setAllBrightness(i % 2);
+        sleepForMs(50);
+    }
+}
 
 int main()
 {
@@ -157,8 +172,10 @@ int main()
                 printf("New best time!\n");
             }
             printf("Your reaction time was %lldms; best so far in game is %lld.\n", timeTaken, bestTime);
+            flashCorrect();
         } else {
             printf("Incorrect.\n");
+            flashIncorrect();
         }
     }
 
