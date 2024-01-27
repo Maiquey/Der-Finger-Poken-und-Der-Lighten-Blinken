@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <errno.h>		// Errors
 #include <string.h>
@@ -20,5 +21,7 @@
 // static int waitForGpioEdge(const char** fileNamesForGpioValue);
 void joystick_init(void);
 int joystick_getJoyStickPress(void);
+bool joystick_checkIfPressed(void);
+void joystick_waitForRelease(void);
 
 #endif

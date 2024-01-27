@@ -2,6 +2,7 @@
 
 #define NUM_DIRECTIONS 4
 #define TIMEOUT_CODE 4
+#define MAX_TIMEOUT 5000
 #define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
 #define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
 #define JSUP_IN        "/sys/class/gpio/gpio26/value"
@@ -51,7 +52,7 @@ static void writeToFile(const char* fileName, const char* value)
 	fclose(pFile);
 }
 
-static int waitForGpioEdge(const char** fileNamesForGpioValue) 
+static int waitForGpioEdge(const char** fileNamesForGpioValue, long long timeout) 
 {
     int fdList[NUM_DIRECTIONS];
 	// If you want to wait for input on multiple file, you could change this function
@@ -104,7 +105,7 @@ static int waitForGpioEdge(const char** fileNamesForGpioValue)
 				epollfd, 
 				events, 
 				NUM_DIRECTIONS,                // maximum # events
-				5000);              // timeout in ms, -1 = wait indefinite; 0 = returne immediately
+				timeout);              // timeout in ms, -1 = wait indefinite; 0 = returne immediately
 
 		if (waitRet == -1){
 			fprintf(stderr, "ERROR: epoll_wait() failed (%d) = %s\n", waitRet, strerror(errno));
@@ -141,7 +142,7 @@ int joystick_getJoyStickPress(void){
 	// printf("Now waiting on input for file: %s\n", JSLFT_IN);
 
 	// Wait for an edge trigger:
-	int ret = waitForGpioEdge(ValueFiles);
+	int ret = waitForGpioEdge(ValueFiles, MAX_TIMEOUT);
 	if (ret == -1) {
 		return -1;
 	} else if (ret == 1){
@@ -163,6 +164,26 @@ int joystick_getJoyStickPress(void){
 		}
 	}
 	return -1;
+}
+
+bool joystick_checkIfPressed(void){
+	for (int i = 0; i < NUM_DIRECTIONS; i++){
+		// Current state:
+		char buff[1024];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		if (bytesRead > 0) {
+			if (buff[0] == 48){
+				return true;
+			}
+		} else {
+			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
+		}
+	}
+	return false;
+}
+
+void joystick_waitForRelease(void){
+	waitForGpioEdge(ValueFiles, -1);
 }
 
 // int main() 

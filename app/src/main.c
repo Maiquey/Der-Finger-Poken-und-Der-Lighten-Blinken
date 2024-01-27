@@ -135,6 +135,11 @@ int main()
     while(1) {
         led_setGameStartingLedState();
         printf("Get ready...\n");
+
+        if (joystick_checkIfPressed()){
+            printf("Please let go of joystick\n");
+            joystick_waitForRelease();
+        }
         //Thank you chatGPT
         long long waitTime = (rand() % (3000 - 500 + 1) + 500);
         sleepForMs(waitTime);
