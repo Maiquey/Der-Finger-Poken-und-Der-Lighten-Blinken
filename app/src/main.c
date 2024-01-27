@@ -14,6 +14,12 @@
 #include "hal/joystick.h"
 
 #define NUM_LEDS 4
+#define JOYSTICK_UP 0
+#define JOYSTICK_RIGHT 1
+#define JOYSTICK_DOWN 2
+#define JOYSTICK_LEFT 3
+#define UP_DIRECTION 0
+#define TIMEOUT_CODE 4
 
 // From Assignment Description
 // static void runCommand(char* command)
@@ -42,21 +48,6 @@ static void setAllBrightness(int brightness){
     for (int i = 0; i < NUM_LEDS; i++){
         led_setBrightness(i, brightness);
     }
-}
-
-static int readLineFromFile(const char* fileName, char* buff, unsigned int maxLength)
-{
-	FILE *file = fopen(fileName, "r");
-	int bytes_read = getline(&buff, (size_t*) &maxLength, file);
-	fclose(file);
-	return bytes_read;
-}
-
-static void writeToFile(const char* fileName, const char* value)
-{
-	FILE *pFile = fopen(fileName, "w");
-	fprintf(pFile, "%s", value);
-	fclose(pFile);
 }
 
 static void setStartingLedState(void){
@@ -132,71 +123,44 @@ int main()
     // REAL CODE
     // TODO: export GPIO pins
     srand(time(NULL));
-    for (int i = 0; i < NUM_DIRECTIONS; i++){
-        writeToFile(DirectionFiles[i], "in");
-        // .. set edge trigger; options are "none", "rising", "falling", "both"
-        writeToFile(EdgeFiles[i], "both");
-    }
+
     printf("Welcome to the reaction timer game v1.0!\n");
     printf("When the LEDs light up, press the joystick in that direction!\n");
     printf("(Press left or right to exit)\n");
     // long long bestTime = 5000;
-    setStartingLedState();
+    
     while(1) {
+        setStartingLedState();
+        printf("Get ready...\n");
         //Thank you chatGPT
         long long waitTime = (rand() % (3000 - 500 + 1) + 500);
         sleepForMs(waitTime);
 
+        setAllBrightness(0);
         int direction = (rand() % 2) * 3;
         if (direction == 0){
             printf("Press UP now!\n");
         } else {
             printf("Press DOWN now!\n");
         }
-
-        // Block and wait for edge triggered change on GPIO pin
-        // printf("Now waiting on input for file: %s\n", JSLFT_IN);
-
-        // Wait for an edge trigger:
-        int ret = waitForGpioEdge(ValueFiles);
-        if (ret == -1) {
-            exit(EXIT_FAILURE);
-        } else if (ret == 1){
-            printf("no input within 5000ms; quitting!\n");
+        led_setBrightness(direction, 1);
+        
+        long long startTime = getTimeInMs();
+        int directionId = joystick_getJoyStickPress();
+        long long endTime = getTimeInMs();
+        printf("Time: %lldms\n", endTime - startTime);
+        if (directionId == TIMEOUT_CODE) {
+            printf("No input within 5000ms; quitting!\n");
             exit(EXIT_SUCCESS);
+        } else if (directionId == JOYSTICK_LEFT || directionId == JOYSTICK_RIGHT){
+            printf("User selected to quit.\n");
+            exit(EXIT_SUCCESS);
+        } else if ((directionId == JOYSTICK_UP && direction == UP_DIRECTION)
+                || (directionId == JOYSTICK_DOWN && direction != UP_DIRECTION)) {
+            printf("Correct!\n");
+        } else {
+            printf("Incorrect.\n");
         }
-
-        for (int i = 0; i < NUM_DIRECTIONS; i++){
-            // Current state:
-            char buff[1024];
-            int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
-            if (bytesRead > 0) {
-                int directionId = buff[0];
-                if (buff[0] == 0){
-                    if (directionId == 1 || 3) {
-                        printf("User selected to quit.\n");
-                        setAllBrightness(0);
-                        exit(EXIT_SUCCESS);
-                    } else if (directionId == 0) {
-                        if (direction == 0){
-                            printf("Correct!");
-                        } else {
-                            printf("Incorrect!");
-                        }
-                    } else {
-                        if (direction != 0) {
-                            printf("Correct!");
-                        } else {
-                            printf("Incorrect!");
-                        }
-                    }
-                }
-                // printf("GPIO pin %d reads: %c\n", i, buff[0]);
-            } else {
-                fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
-            }
-        }
-
     }
 
     // REAL CODE END

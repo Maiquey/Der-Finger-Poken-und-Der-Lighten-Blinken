@@ -1,6 +1,56 @@
 #include "hal/joystick.h"
 
-int waitForGpioEdge(const char** fileNamesForGpioValue) 
+#define NUM_DIRECTIONS 4
+#define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
+#define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
+#define JSUP_IN        "/sys/class/gpio/gpio26/value"
+#define JSRT_DIRECTION "/sys/class/gpio/gpio47/direction"
+#define JSRT_EDGE      "/sys/class/gpio/gpio47/edge"
+#define JSRT_IN        "/sys/class/gpio/gpio47/value"
+#define JSDN_DIRECTION "/sys/class/gpio/gpio46/direction"
+#define JSDN_EDGE      "/sys/class/gpio/gpio46/edge"
+#define JSDN_IN        "/sys/class/gpio/gpio46/value"
+#define JSLFT_DIRECTION "/sys/class/gpio/gpio65/direction"
+#define JSLFT_EDGE      "/sys/class/gpio/gpio65/edge"
+#define JSLFT_IN        "/sys/class/gpio/gpio65/value"
+
+const char* DirectionFiles[NUM_DIRECTIONS] = {
+    JSUP_DIRECTION,
+    JSRT_DIRECTION,
+    JSDN_DIRECTION,
+    JSLFT_DIRECTION
+};
+
+const char* ValueFiles[NUM_DIRECTIONS] = {
+    JSUP_IN,
+    JSRT_IN,
+    JSDN_IN,
+    JSLFT_IN
+};
+
+const char* EdgeFiles[NUM_DIRECTIONS] = {
+    JSUP_EDGE,
+    JSRT_EDGE,
+    JSDN_EDGE,
+    JSLFT_EDGE
+};
+
+static int readLineFromFile(const char* fileName, char* buff, unsigned int maxLength)
+{
+	FILE *file = fopen(fileName, "r");
+	int bytes_read = getline(&buff, (size_t*) &maxLength, file);
+	fclose(file);
+	return bytes_read;
+}
+
+static void writeToFile(const char* fileName, const char* value)
+{
+	FILE *pFile = fopen(fileName, "w");
+	fprintf(pFile, "%s", value);
+	fclose(pFile);
+}
+
+static int waitForGpioEdge(const char** fileNamesForGpioValue) 
 {
     int fdList[NUM_DIRECTIONS];
 	// If you want to wait for input on multiple file, you could change this function
@@ -60,7 +110,6 @@ int waitForGpioEdge(const char** fileNamesForGpioValue)
 			for (int i = 0; i < NUM_DIRECTIONS; i++){
 				close(fdList[i]);
 			}
-			// close(fdLeft);
 			close(epollfd);
 			return -1;
 		} else if (waitRet == 0) {
@@ -68,13 +117,52 @@ int waitForGpioEdge(const char** fileNamesForGpioValue)
 		}
 	}
 
-    printf("debug 1\n");
+    // printf("debug 1\n");
 	// cleanup epoll instance:
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
 		close(fdList[i]);
 	}
 	close(epollfd);
 	return 0;
+}
+
+void joystick_init(void)
+{
+	for (int i = 0; i < NUM_DIRECTIONS; i++){
+        writeToFile(DirectionFiles[i], "in");
+        // .. set edge trigger; options are "none", "rising", "falling", "both"
+        writeToFile(EdgeFiles[i], "both");
+    }
+}
+
+int joystick_getJoyStickPress(void){
+	// Block and wait for edge triggered change on GPIO pin
+	// printf("Now waiting on input for file: %s\n", JSLFT_IN);
+
+	// Wait for an edge trigger:
+	int ret = waitForGpioEdge(ValueFiles);
+	if (ret == -1) {
+		return -1;
+	} else if (ret == 1){
+		return 5;
+		// printf("no input within 5000ms; quitting!\n");
+		// exit(EXIT_SUCCESS);
+	}
+
+	for (int i = 0; i < NUM_DIRECTIONS; i++){
+		// Current state:
+		char buff[1024];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		if (bytesRead > 0) {
+			if (buff[0] == 0){
+				return i;
+			}
+			// printf("GPIO pin %d reads: %c\n", i, buff[0]);
+		} else {
+			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
+		}
+	}
+	return -1;
 }
 
 // int main() 
