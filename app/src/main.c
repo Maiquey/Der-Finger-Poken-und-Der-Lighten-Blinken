@@ -18,6 +18,8 @@
 #define JOYSTICK_RIGHT 1
 #define JOYSTICK_DOWN 2
 #define JOYSTICK_LEFT 3
+#define LED_UP 0
+#define LED_DOWN 3
 #define UP_DIRECTION 0
 #define TIMEOUT_CODE 4
 
@@ -44,21 +46,6 @@
 //         printf(" exit code: %d\n", exitCode);
 //     }
 // }
-static void setAllBrightness(int brightness){
-    for (int i = 0; i < NUM_LEDS; i++){
-        led_setBrightness(i, brightness);
-    }
-}
-
-static void setStartingLedState(void){
-    for (int i = 0; i < NUM_LEDS; i++){
-        if (i == 0 || i == 3) {
-            led_setBrightness(i, 0);
-        } else {
-            led_setBrightness(i, 1);
-        }
-    }
-}
 
 int main()
 {
@@ -131,33 +118,36 @@ int main()
     long long bestTime = 5000;
     
     while(1) {
-        setStartingLedState();
+        led_setGameStartingLedState();
         printf("Get ready...\n");
         //Thank you chatGPT
         long long waitTime = (rand() % (3000 - 500 + 1) + 500);
         sleepForMs(waitTime);
 
-        setAllBrightness(0);
-        int direction = (rand() % 2) * 3;
-        if (direction == 0){
+        led_setAllBrightness(0);
+        int direction = (rand() % 2) * 3; //returns 0 or 3 randomly (for up or down LED)
+        if (direction == LED_UP){
             printf("Press UP now!\n");
+            led_displayUpLed(true);
         } else {
             printf("Press DOWN now!\n");
+            led_displayUpLed(false);
         }
-        led_setBrightness(direction, 1);
-        
+
         long long startTime = getTimeInMs();
         int directionId = joystick_getJoyStickPress();
         long long endTime = getTimeInMs();
         printf("Direction: %d\n", directionId);
         
         long long timeTaken = endTime - startTime;
-        
+
         if (directionId == TIMEOUT_CODE) {
             printf("No input within 5000ms; quitting!\n");
+            led_setAllBrightness(0);
             exit(EXIT_SUCCESS);
         } else if (directionId == JOYSTICK_LEFT || directionId == JOYSTICK_RIGHT){
             printf("User selected to quit.\n");
+            led_setAllBrightness(0);
             exit(EXIT_SUCCESS);
         } else if ((directionId == JOYSTICK_UP && direction == UP_DIRECTION)
                 || (directionId == JOYSTICK_DOWN && direction != UP_DIRECTION)) {

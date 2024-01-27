@@ -8,6 +8,7 @@
         "stdlib.h": "c",
         "string.h": "c",
         "epoll.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "stdbool.h": "c"
     }
 }

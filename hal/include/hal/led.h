@@ -1,8 +1,10 @@
 #ifndef _LED_H_
 #define _LED_H_
 
-void led_setAllToNone(void);
-void led_setAllToTimer(void);
-void led_setBrightness(int ledId, int brightness);
+#include <stdbool.h>
+
+void led_setAllBrightness(int brightness);
+void led_setGameStartingLedState(void);
+void led_displayUpLed(bool isUp);
 
 #endif
