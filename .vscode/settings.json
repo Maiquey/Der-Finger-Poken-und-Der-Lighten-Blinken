@@ -3,6 +3,11 @@
     "files.associations": {
         "time.h": "c",
         "stdio.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "fcntl.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "epoll.h": "c",
+        "errno.h": "c"
     }
 }
