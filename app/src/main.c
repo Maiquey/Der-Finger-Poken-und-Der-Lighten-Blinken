@@ -67,7 +67,6 @@ int main()
         }
         
         long long waitTime = (rand() % (MAX_WAIT_TIME - MIN_WAIT_TIME + 1) + MIN_WAIT_TIME); // Courtesy of chatGPT
-        printf("Wait time is %lldms\n", waitTime);
         long long startWaitTime = getTimeInMs();
 
         // loop for specified waitTime
