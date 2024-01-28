@@ -24,6 +24,7 @@
 #define TIMEOUT_CODE 4
 #define CORRECT_FREQUENCY 4
 #define INCORRECT_FREQUENCY 10
+#define MAX_TIMEOUT 5000
 
 // From Assignment Description
 // static void runCommand(char* command)
@@ -133,6 +134,7 @@ int main()
     long long bestTime = 5000;
     
     while(1) {
+        bool loopBack = false;
         led_setGameStartingLedState();
         printf("Get ready...\n");
 
@@ -142,7 +144,31 @@ int main()
         }
         //Thank you chatGPT
         long long waitTime = (rand() % (3000 - 500 + 1) + 500);
-        sleepForMs(waitTime);
+        long long startWaitTime = getTimeInMs();
+        while (getTimeInMs() - startWaitTime < waitTime){
+            if (joystick_isPressedUpDown()){
+                loopBack = true;
+                break;
+            }
+        }
+        if (loopBack) {
+            printf("Too soon!\n");
+            flashIncorrect();
+            continue;
+        }
+        if (joystick_isPressedLeftRight()){
+            printf("User selected to quit.\n");
+            led_setAllBrightness(0);
+            exit(EXIT_SUCCESS);
+        }
+        // int directionId = joystick_getJoyStickPress(waitTime);
+        // sleepForMs(waitTime);
+        // printf("Direction: %d\n", directionId);
+        // if (directionId == JOYSTICK_UP || directionId == JOYSTICK_DOWN) {
+        //     printf("Too soon!\n");
+        //     flashIncorrect();
+        //     continue;
+        // }
 
         led_setAllBrightness(0);
         int direction = (rand() % 2) * 3; //returns 0 or 3 randomly (for up or down LED)
@@ -155,9 +181,9 @@ int main()
         }
 
         long long startTime = getTimeInMs();
-        int directionId = joystick_getJoyStickPress();
+        int directionId = joystick_getJoyStickPress(MAX_TIMEOUT);
         long long endTime = getTimeInMs();
-        printf("Direction: %d\n", directionId);
+        // printf("Direction: %d\n", directionId);
         
         long long timeTaken = endTime - startTime;
 
@@ -176,7 +202,7 @@ int main()
                 bestTime = timeTaken;
                 printf("New best time!\n");
             }
-            printf("Your reaction time was %lldms; best so far in game is %lld.\n", timeTaken, bestTime);
+            printf("Your reaction time was %lldms; best so far in game is %lldms.\n", timeTaken, bestTime);
             flashCorrect();
         } else {
             printf("Incorrect.\n");

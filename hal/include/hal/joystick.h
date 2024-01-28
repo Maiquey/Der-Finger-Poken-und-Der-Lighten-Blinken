@@ -20,8 +20,10 @@
 // static void writeToFile(const char* fileName, const char* value);
 // static int waitForGpioEdge(const char** fileNamesForGpioValue);
 void joystick_init(void);
-int joystick_getJoyStickPress(void);
+int joystick_getJoyStickPress(long long timeout);
 bool joystick_checkIfPressed(void);
 void joystick_waitForRelease(void);
+bool joystick_isPressedUpDown(void);
+bool joystick_isPressedLeftRight(void);
 
 #endif

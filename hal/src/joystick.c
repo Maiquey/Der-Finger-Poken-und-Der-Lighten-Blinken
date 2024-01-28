@@ -2,7 +2,6 @@
 
 #define NUM_DIRECTIONS 4
 #define TIMEOUT_CODE 4
-#define MAX_TIMEOUT 5000
 #define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
 #define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
 #define JSUP_IN        "/sys/class/gpio/gpio26/value"
@@ -15,6 +14,10 @@
 #define JSLFT_DIRECTION "/sys/class/gpio/gpio65/direction"
 #define JSLFT_EDGE      "/sys/class/gpio/gpio65/edge"
 #define JSLFT_IN        "/sys/class/gpio/gpio65/value"
+#define JOYSTICK_UP 0
+#define JOYSTICK_RIGHT 1
+#define JOYSTICK_DOWN 2
+#define JOYSTICK_LEFT 3
 
 const char* DirectionFiles[NUM_DIRECTIONS] = {
     JSUP_DIRECTION,
@@ -137,12 +140,12 @@ void joystick_init(void)
     }
 }
 
-int joystick_getJoyStickPress(void){
+int joystick_getJoyStickPress(long long timeout){
 	// Block and wait for edge triggered change on GPIO pin
 	// printf("Now waiting on input for file: %s\n", JSLFT_IN);
 
 	// Wait for an edge trigger:
-	int ret = waitForGpioEdge(ValueFiles, MAX_TIMEOUT);
+	int ret = waitForGpioEdge(ValueFiles, timeout);
 	if (ret == -1) {
 		return -1;
 	} else if (ret == 1){
@@ -184,6 +187,38 @@ bool joystick_checkIfPressed(void){
 
 void joystick_waitForRelease(void){
 	waitForGpioEdge(ValueFiles, -1);
+}
+
+bool joystick_isPressedUpDown(void){
+	for (int i = 0; i < NUM_DIRECTIONS; i++){
+		// Current state:
+		char buff[1024];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		if (bytesRead > 0) {
+			if (buff[0] == 48 && (i == JOYSTICK_UP || i == JOYSTICK_DOWN)){
+				return true;
+			}
+		} else {
+			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
+		}
+	}
+	return false;
+}
+
+bool joystick_isPressedLeftRight(void){
+	for (int i = 0; i < NUM_DIRECTIONS; i++){
+		// Current state:
+		char buff[1024];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		if (bytesRead > 0) {
+			if (buff[0] == 48 && (i == JOYSTICK_LEFT || i == JOYSTICK_RIGHT)){
+				return true;
+			}
+		} else {
+			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
+		}
+	}
+	return false;
 }
 
 // int main() 
