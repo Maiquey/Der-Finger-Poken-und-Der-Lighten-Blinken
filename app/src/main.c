@@ -13,17 +13,22 @@
 #include "hal/joystick.h"
 
 #define NUM_LEDS 4
+#define LED_UP 0
+#define LED_DOWN 3
+#define CORRECT_FREQUENCY 4
+#define INCORRECT_FREQUENCY 10
+
 #define JOYSTICK_UP 0
 #define JOYSTICK_RIGHT 1
 #define JOYSTICK_DOWN 2
 #define JOYSTICK_LEFT 3
-#define LED_UP 0
-#define LED_DOWN 3
-#define UP_DIRECTION 0
+
 #define TIMEOUT_CODE 4
-#define CORRECT_FREQUENCY 4
-#define INCORRECT_FREQUENCY 10
+#define ERROR_CODE -1
+
 #define MAX_TIMEOUT 5000
+#define MIN_WAIT_TIME 500
+#define MAX_WAIT_TIME 3000
 
 //Flash LEDs at 4Hz for 0.5 seconds
 static void flashCorrect(void){
@@ -61,7 +66,8 @@ int main()
             joystick_waitForRelease();
         }
         
-        long long waitTime = (rand() % (3000 - 500 + 1) + 500); // Courtesy of chatGPT
+        long long waitTime = (rand() % (MAX_WAIT_TIME - MIN_WAIT_TIME + 1) + MIN_WAIT_TIME); // Courtesy of chatGPT
+        printf("Wait time is %lldms\n", waitTime);
         long long startWaitTime = getTimeInMs();
 
         // loop for specified waitTime
@@ -90,7 +96,7 @@ int main()
         // Wait time successfully concluded, proceed to reaction game
 
         led_setAllBrightness(0); // prepare LEDs for displaying up or down
-        int gameDirection = (rand() % 2) * 3; //returns 0 or 3 randomly (LED_UP or LED_DOWN) - Courtesy of chatGPT
+        int gameDirection = (rand() % 2) * LED_DOWN; //returns 0 or 3 randomly (LED_UP or LED_DOWN) - Courtesy of chatGPT
         if (gameDirection == LED_UP){
             printf("Press UP now!\n");
             led_displayUpLed(true);
@@ -114,8 +120,8 @@ int main()
             printf("User selected to quit.\n");
             led_setAllBrightness(0);
             exit(EXIT_SUCCESS);
-        } else if ((directionId == JOYSTICK_UP && gameDirection == UP_DIRECTION)
-                || (directionId == JOYSTICK_DOWN && gameDirection != UP_DIRECTION)) {
+        } else if ((directionId == JOYSTICK_UP && gameDirection == LED_UP)
+                || (directionId == JOYSTICK_DOWN && gameDirection == LED_DOWN)) {
             printf("Correct!\n");
             if (timeTaken < bestTime){
                 bestTime = timeTaken;
