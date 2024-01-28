@@ -1,14 +1,7 @@
+// Implementation of HAL Joystick module
+
 #include "hal/joystick.h"
 
-#define NUM_DIRECTIONS 4
-#define JOYSTICK_UP 0
-#define JOYSTICK_RIGHT 1
-#define JOYSTICK_DOWN 2
-#define JOYSTICK_LEFT 3
-#define TIMEOUT_CODE 4
-#define ERROR_CODE -1
-#define BUFF_SIZE 1024
-#define INDEFINITE_TIMEOUT -1
 #define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
 #define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
 #define JSUP_IN        "/sys/class/gpio/gpio26/value"
@@ -21,6 +14,16 @@
 #define JSLFT_DIRECTION "/sys/class/gpio/gpio65/direction"
 #define JSLFT_EDGE      "/sys/class/gpio/gpio65/edge"
 #define JSLFT_IN        "/sys/class/gpio/gpio65/value"
+
+#define NUM_DIRECTIONS 4
+#define JOYSTICK_UP 0
+#define JOYSTICK_RIGHT 1
+#define JOYSTICK_DOWN 2
+#define JOYSTICK_LEFT 3
+#define TIMEOUT_CODE 4
+#define ERROR_CODE -1
+#define BUFF_SIZE 1024
+#define INDEFINITE_TIMEOUT -1
 
 // Lists for looping through different files for all 4 joystick directions
 // Always in the order Up->Right->Down->Left

@@ -1,3 +1,5 @@
+// Custom module for timing-related tasks
+
 #ifndef _TIMING_H_
 #define _TIMING_H_
 

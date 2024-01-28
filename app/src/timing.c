@@ -1,3 +1,6 @@
+// Implementation of timing module
+// Function implementations gathered from Assignment Description Doc
+
 #define _POSIX_C_SOURCE 200809L
 #include "timing.h"
 #include <time.h>
@@ -12,16 +15,6 @@ long long getTimeInMs(void){
     + nanoSeconds / 1000000;
     return milliSeconds;
 }
-// static long long getTimesInMs(void)
-// {
-//     struct timespec spec;
-//     clock_gettime(CLOCK_REALTIME, &spec);
-//     long long seconds = spec.tv_sec;
-//     long long nanoSeconds = spec.tv_nsec;
-//     long long milliSeconds = seconds * 1000
-//     + nanoSeconds / 1000000;
-//     return milliSeconds;
-// }
 
 void sleepForMs(long long delayInMs)
 {

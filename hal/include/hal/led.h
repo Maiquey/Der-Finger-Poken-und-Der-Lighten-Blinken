@@ -1,4 +1,4 @@
-// Joystick module 
+// LED module 
 // Part of the Hardware Abstraction Layer (HAL) 
 
 #ifndef _LED_H_
