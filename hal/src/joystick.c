@@ -1,7 +1,14 @@
 #include "hal/joystick.h"
 
 #define NUM_DIRECTIONS 4
+#define JOYSTICK_UP 0
+#define JOYSTICK_RIGHT 1
+#define JOYSTICK_DOWN 2
+#define JOYSTICK_LEFT 3
 #define TIMEOUT_CODE 4
+#define ERROR_CODE -1
+#define BUFF_SIZE 1024
+#define INDEFINITE_TIMEOUT -1
 #define JSUP_DIRECTION "/sys/class/gpio/gpio26/direction"
 #define JSUP_EDGE      "/sys/class/gpio/gpio26/edge"
 #define JSUP_IN        "/sys/class/gpio/gpio26/value"
@@ -14,10 +21,9 @@
 #define JSLFT_DIRECTION "/sys/class/gpio/gpio65/direction"
 #define JSLFT_EDGE      "/sys/class/gpio/gpio65/edge"
 #define JSLFT_IN        "/sys/class/gpio/gpio65/value"
-#define JOYSTICK_UP 0
-#define JOYSTICK_RIGHT 1
-#define JOYSTICK_DOWN 2
-#define JOYSTICK_LEFT 3
+
+// Lists for looping through different files for all 4 joystick directions
+// Always in the order Up->Right->Down->Left
 
 const char* DirectionFiles[NUM_DIRECTIONS] = {
     JSUP_DIRECTION,
@@ -40,6 +46,28 @@ const char* EdgeFiles[NUM_DIRECTIONS] = {
     JSLFT_EDGE
 };
 
+// Courtesy of Assignment Description Doc
+static void runCommand(char* command)
+{
+	// Execute the shell command (output into pipe)
+	FILE *pipe = popen(command, "r");
+	// Ignore output of the command; but consume it
+	// so we don't get an error when closing the pipe.
+	char buffer[1024];
+	while (!feof(pipe) && !ferror(pipe)) {
+		if (fgets(buffer, sizeof(buffer), pipe) == NULL)
+			break;
+		// printf("--> %s", buffer); // Uncomment for debugging
+	}
+	// Get the exit code from the pipe; non-zero is an error:
+	int exitCode = WEXITSTATUS(pclose(pipe));
+	if (exitCode != 0) {
+		perror("Unable to execute command:");
+		printf(" command: %s\n", command);
+		printf(" exit code: %d\n", exitCode);
+	}
+}
+
 static int readLineFromFile(const char* fileName, char* buff, unsigned int maxLength)
 {
 	FILE *file = fopen(fileName, "r");
@@ -55,28 +83,23 @@ static void writeToFile(const char* fileName, const char* value)
 	fclose(pFile);
 }
 
+// Modified from Dr. Brian Fraser's code example and the epoll man page
 static int waitForGpioEdge(const char** fileNamesForGpioValue, long long timeout) 
 {
+	// for multiple file triggers
     int fdList[NUM_DIRECTIONS];
-	// If you want to wait for input on multiple file, you could change this function
-	// to take an array of names, and then loop throug each, adding it to the 
-	// epoll instance (accessed via epollfd) by calling epoll_ctl() numerous times.
 
 	// create an epoll instance
-	// .. kernel ignores size argument; must be > 0
-
-    //TODO
-    // Make array of names, and add each to epoll instance (epollfd) by calling epoll_ctl()
-
 	int epollfd = epoll_create(1);
 	if (epollfd == -1) {
 		fprintf(stderr, "ERROR: epoll_create() returned (%d) = %s\n", epollfd, strerror(errno));
 		return -1;
 	}
 
+	// create an array of epoll events
 	struct epoll_event events[NUM_DIRECTIONS];
 
-	// open GPIO value file:
+	// open GPIO value file for each joystick direction
     for (int i = 0; i < NUM_DIRECTIONS; i++){
 		int fdLeft = open(fileNamesForGpioValue[i], O_RDONLY | O_NONBLOCK);
 		fdList[i] = fdLeft;
@@ -96,33 +119,29 @@ static int waitForGpioEdge(const char** fileNamesForGpioValue, long long timeout
 			return -1;
 		}
 
+		// Add epoll event to list
 		events[i] = epollStruct;
 	}
-	// }
-	// struct epoll_event epollStruct;
-	// epollStruct.events = EPOLLIN | EPOLLET | EPOLLPRI;
-	// epollStruct.data.fd = fdList[0];
+
 	// ignore first trigger
 	for (int i = 0; i < 2; i++) {
 		int waitRet = epoll_wait(
 				epollfd, 
 				events, 
-				NUM_DIRECTIONS,                // maximum # events
-				timeout);              // timeout in ms, -1 = wait indefinite; 0 = returne immediately
-
+				NUM_DIRECTIONS,                // maximum # events (4 possible directions)
+				timeout);              // timeout in ms, -1 = wait indefinite; 0 = return immediately
 		if (waitRet == -1){
 			fprintf(stderr, "ERROR: epoll_wait() failed (%d) = %s\n", waitRet, strerror(errno));
 			for (int i = 0; i < NUM_DIRECTIONS; i++){
 				close(fdList[i]);
 			}
 			close(epollfd);
-			return -1;
-		} else if (waitRet == 0) {
+			return -1; //error
+		} else if (waitRet == 0) { // in case of timeout
 			return 1;
 		}
 	}
 
-    // printf("debug 1\n");
 	// cleanup epoll instance:
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
 		close(fdList[i]);
@@ -133,6 +152,12 @@ static int waitForGpioEdge(const char** fileNamesForGpioValue, long long timeout
 
 void joystick_init(void)
 {
+	// Force the joystick's pins to be treated as GPIO
+	runCommand("config-pin p8.14 gpio");
+	runCommand("config-pin p8.15 gpio");
+	runCommand("config-pin p8.16 gpio");
+	runCommand("config-pin p8.17 gpio");
+	// Configure joystick input and edge triggers
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
         writeToFile(DirectionFiles[i], "in");
         // .. set edge trigger; options are "none", "rising", "falling", "both"
@@ -140,42 +165,40 @@ void joystick_init(void)
     }
 }
 
+// Returns the ID of the joystick direction pressed according to the order specified at the top of this file
+// Returns TIMEOUT_CODE 4 if timeout on edge trigger reached
+// Returns -1 in case of an error (edge trigger error or no joystick not pressed in any direction)
 int joystick_getJoyStickPress(long long timeout){
 	// Block and wait for edge triggered change on GPIO pin
-	// printf("Now waiting on input for file: %s\n", JSLFT_IN);
 
 	// Wait for an edge trigger:
 	int ret = waitForGpioEdge(ValueFiles, timeout);
 	if (ret == -1) {
-		return -1;
+		return ERROR_CODE;
 	} else if (ret == 1){
 		return TIMEOUT_CODE;
-		// printf("no input within 5000ms; quitting!\n");
-		// exit(EXIT_SUCCESS);
 	}
 
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
-		// Current state:
-		char buff[1024];
-		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		char buff[BUFF_SIZE];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, BUFF_SIZE);
 		if (bytesRead > 0) {
-			if (buff[0] == 48){
+			if (buff[0] == 48){ // 48 == '0' in ASCII
 				return i;
 			}
 		} else {
 			fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
 		}
 	}
-	return -1;
+	return ERROR_CODE;
 }
 
 bool joystick_checkIfPressed(void){
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
-		// Current state:
-		char buff[1024];
-		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		char buff[BUFF_SIZE];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, BUFF_SIZE);
 		if (bytesRead > 0) {
-			if (buff[0] == 48){
+			if (buff[0] == 48){ // 48 == '0' in ASCII
 				return true;
 			}
 		} else {
@@ -185,17 +208,19 @@ bool joystick_checkIfPressed(void){
 	return false;
 }
 
+// Called when requesting joystick release for user
+// Waits indefinitely for edge trigger on release
 void joystick_waitForRelease(void){
-	waitForGpioEdge(ValueFiles, -1);
+	waitForGpioEdge(ValueFiles, INDEFINITE_TIMEOUT);
 }
 
+// Check if UP/DOWN being pressed
 bool joystick_isPressedUpDown(void){
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
-		// Current state:
-		char buff[1024];
-		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		char buff[BUFF_SIZE];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, BUFF_SIZE);
 		if (bytesRead > 0) {
-			if (buff[0] == 48 && (i == JOYSTICK_UP || i == JOYSTICK_DOWN)){
+			if (buff[0] == 48 && (i == JOYSTICK_UP || i == JOYSTICK_DOWN)){ // 48 == '0' in ASCII
 				return true;
 			}
 		} else {
@@ -205,13 +230,13 @@ bool joystick_isPressedUpDown(void){
 	return false;
 }
 
+// Check if LEFT/RIGHT being pressed
 bool joystick_isPressedLeftRight(void){
 	for (int i = 0; i < NUM_DIRECTIONS; i++){
-		// Current state:
-		char buff[1024];
-		int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
+		char buff[BUFF_SIZE];
+		int bytesRead = readLineFromFile(ValueFiles[i], buff, BUFF_SIZE);
 		if (bytesRead > 0) {
-			if (buff[0] == 48 && (i == JOYSTICK_LEFT || i == JOYSTICK_RIGHT)){
+			if (buff[0] == 48 && (i == JOYSTICK_LEFT || i == JOYSTICK_RIGHT)){ // 48 == '0' in ASCII
 				return true;
 			}
 		} else {
@@ -220,40 +245,3 @@ bool joystick_isPressedLeftRight(void){
 	}
 	return false;
 }
-
-// int main() 
-// {
-// 	// Assume joystick pin already exported as GPIO
-// 	// .. set direction of GPIO pin to input
-//     for (int i = 0; i < NUM_DIRECTIONS; i++){
-//         writeToFile(DirectionFiles[i], "in");
-//         // .. set edge trigger; options are "none", "rising", "falling", "both"
-//         writeToFile(EdgeFiles[i], "both");
-//     }
-
-// 	// Block and wait for edge triggered change on GPIO pin
-// 	// printf("Now waiting on input for file: %s\n", JSLFT_IN);
-// 	while (1) {
-
-// 		// Wait for an edge trigger:
-// 		int ret = waitForGpioEdge(ValueFiles);
-// 		if (ret == -1) {
-// 			exit(EXIT_FAILURE);
-// 		} else {
-// 			printf("number of events triggered: %d\n", ret);
-// 		}
-
-// 		for (int i = 0; i < NUM_DIRECTIONS; i++){
-// 			// Current state:
-// 			char buff[1024];
-// 			// char* file = ValueFiles[i];
-// 			int bytesRead = readLineFromFile(ValueFiles[i], buff, 1024);
-// 			if (bytesRead > 0) {
-// 				printf("GPIO pin %d reads: %c\n", i, buff[0]);
-// 			} else {
-// 				fprintf(stderr, "ERROR: Read 0 bytes from GPIO input: %s\n", strerror(errno));
-// 			}
-// 		}
-// 	}
-// 	return 0;
-// }
